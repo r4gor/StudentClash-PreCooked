@@ -2,7 +2,7 @@
 
 # Pythagoras
 
-> 🏆 **1st place, Reply Student Clash 2026** — team **Pre Cooked** (Kevin Abate, emanuelescala, Raul Agolli)
+> 🏆 **1st place, Reply Student Clash 2026** — team **Pre Cooked** (Raul Agolli, Kevin Abate, Emanuele Scala, Domenico De Giorgio)
 
 **AI oral assessment for project-based courses.** A team uploads its deliverable and has a ~10-minute **spoken
 conversation** with Pythagoras about its own project. Pythagoras covers 3 topics, climbs Bloom's levels on each
@@ -175,5 +175,5 @@ python -m pytest        # offline, no key: rules, report checks, planner inputs,
 
 ## Team
 
-Built by team **Pre Cooked** for Reply Student Clash 2026 (direction: Assessment). This repository is a fork of
+Built by team **Pre Cooked** for Reply Student Clash 2026 (direction: Assessment): Raul Agolli, Kevin Abate, Emanuele Scala, Domenico De Giorgio. This repository is a fork of
 [Keevin16/StudentClash-PreCooked](https://github.com/Keevin16/StudentClash-PreCooked).
