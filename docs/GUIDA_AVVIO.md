@@ -64,7 +64,8 @@ In `.env`: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` (
 | "Report queued" nel report | Quota della chiave finita: l'intervista è salvata e il report viene rigenerato da solo (dopo 1, 5, 15, 30, 60 min, poi ogni ora, anche dopo un riavvio). Oppure *Retry now* |
 | Il microfono non parte | Serve `localhost` o HTTPS e il permesso del browser; usa Chrome/Edge |
 | "Natural voice unavailable" | La voce locale non è partita (vedi il terminale; spesso manca `espeak-ng`): l'intervista continua con la voce del browser. Per forzarla: `PYTHAGORAS_VOICE=browser` |
-| Pythagoras mi interrompe / aspetta troppo | In `.env`: `PYTHAGORAS_SMART_TURN_SILENCE_S` (default 1.0) e `PYTHAGORAS_SILENCE_S` (default 2.5) |
+| Pythagoras non risponde dopo che ho parlato | La risposta finisce solo con **I'm done** (o la barra spaziatrice): le pause non la chiudono più |
+| La voce è sgranata | Succede su Firefox / Zen: usa Chrome o Edge |
 | Verifica completa automatica | Con il server avviato: `python scripts/smoke.py` (studente sintetico, stampa le latenze) |
 | Ricominciare da zero | Ferma il server e cancella la cartella `data/` |
 

@@ -24,9 +24,9 @@ Prof pages redirect to `/prof/login` when an `/api/prof/*` call returns 401.
 | GET | `/api/voice/status` | `{mode, language, missing, warmed, error}` |
 | POST | `/api/voice/warmup` | loads the models (done at server start too); 503 with the reason if it fails |
 | POST | `/api/voice/speak` `{text}` | NDJSON stream, one `{"audio": <base64 WAV>}` per sentence |
-| WS | `/api/voice/stream?token=` | page → server: binary 16 kHz int16 PCM frames (20 ms), `{"type":"listen","enabled","epoch"}`, `{"type":"finish"}` · server → page: `ready`, `speech_start`, `turn_end` (the answer is over: play the acknowledgement), `transcript {text, speech_s}`, `empty`, `error {message}` |
+| WS | `/api/voice/stream?token=` | page → server: binary 16 kHz int16 PCM frames (20 ms), `{"type":"listen","enabled","epoch"}`, `{"type":"finish"}` · server → page: `ready`, `speech_start`, `turn_end` (the answer is over: play the acknowledgement; sent only after `finish`, or at the 120 s cap, never on silence), `transcript {text, speech_s}`, `empty`, `error {message}` |
 
-The page then posts the transcript to `/api/interview/{token}/answer` as usual. `POST /api/interview/{token}/flag {text}` records an integrity signal (tab left); it appears as `submission.flags` for the professor.
+The answer ends when the team presses **I'm done** (or Space), which sends `finish`. The page then posts the transcript to `/api/interview/{token}/answer` as usual. `POST /api/interview/{token}/flag {text}` records an integrity signal (tab left); it appears as `submission.flags` for the professor.
 
 ## Voice fallback (in the browser)
 

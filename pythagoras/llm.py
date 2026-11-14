@@ -1,6 +1,6 @@
 """The only place that talks to an LLM. Two roles: the reasoner (structured output: plan, answer judgement,
 report) and the talker (short spoken lines). Provider: Claude (Sonnet + Haiku), Gemini (Flash + Flash Lite) or
-OpenRouter (any model; default the same Gemini pair), chosen by PYTHAGORAS_PROVIDER or by which key is set. Content uses Anthropic-style blocks
+OpenRouter (any model; default the same Claude pair), chosen by PYTHAGORAS_PROVIDER or by which key is set. Content uses Anthropic-style blocks
 ({"type": "text"} / {"type": "document"} with a base64 PDF); the Gemini path converts them."""
 import base64
 import logging

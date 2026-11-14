@@ -21,7 +21,7 @@ The v0.2 proof of concept (group voice call over LiveKit, local Whisper/Kokoro, 
 | # | Decision | Why |
 |---|---|---|
 | D12 | **Local voice by default** when installed (`pip install -e ".[voice]"`, Apple Silicon): Whisper (MLX) + Kokoro + Silero VAD + Smart Turn v3, ported from the v0.2 agent; no LiveKit, one WebSocket from the page. Browser speech (D4) stays as the automatic fallback | The browser voice was robotic and needed a button after every answer; the v0.2 voice is natural and hears the end of the answer by itself. No extra key, audio never leaves the machine |
-| D13 | **End of turn**: Smart Turn is asked after 1.0 s of pause (0.7 s cut students between two sentences in tests); "not finished" waits for 2.5 s of silence. "I'm done" / Space still closes the turn at once | In an exam, cutting the student is worse than a second of waiting |
+| D13 | ~~**End of turn**~~ superseded by D24: Smart Turn is asked after 1.0 s of pause (0.7 s cut students between two sentences in tests); "not finished" waits for 2.5 s of silence. "I'm done" / Space still closes the turn at once | In an exam, cutting the student is worse than a second of waiting |
 | D14 | **Latency**: (a) a pre-synthesized "Okay." plays the instant the turn ends; (b) the judge runs without extended thinking (`fast=True`: 3.5 s → 1.4 s on Gemini Flash); (c) while it runs, the talker already phrases the follow-up a *solid* answer leads to, used only if the verdict agrees (`PYTHAGORAS_SPECULATE`); (d) the talker opens with a short bridge sentence and each sentence is synthesized on its own, so audio starts after ~0.7 s | From "press, wait 5 s, robot voice" to a reply about 3 s after the student stops, with the silence covered |
 | D15 | **Half-duplex**: the microphone is closed while Pythagoras speaks; no barge-in | No echo problems without headphones; simple and predictable |
 | D16 | English by default; `PYTHAGORAS_LANGUAGE=it` switches prompts, Whisper and the Kokoro voice | The MVP demo is in English |
@@ -36,9 +36,12 @@ The v0.2 proof of concept (group voice call over LiveKit, local Whisper/Kokoro, 
 
 | D23 | **Teams**: the form asks for a team name and contact email (stored in the existing `student_name` / `email` fields); prompts and pages address the team, and whoever worked on a part answers it. A finished **Team_1 report** is seeded at startup from the demo case's `team1.json` (synthetic `cases/ffnn/team1.json` in the repository, Pirelli when that case is present) | The course assesses team projects; the professor pages need a complete example for the demo |
 
+| D24 | **The answer ends only on "I'm done"** (button or Space; safety cap 120 s). The automatic end of turn of D13 is switched off in the microphone stream; `audio.TurnDetector` and its tests stay | Even with Smart Turn, a long pause to think could end the answer. In an exam the team decides when it has finished |
+| D25 | **Demo rules** (`PYTHAGORAS_DEMO_RULES`, on by default for now, `engine._demo_rule`): "I don't know" always gets one retry, a hint and an easier question one Bloom level lower, and a second one in a row moves on; on the weights / initialisation topic any real first answer climbs to level 3 whatever the judge said | A predictable path for the stage demo. The second rule overrides the judge: turn the flag off (`=0`) for any real assessment |
+
 ## Interview rules (engine.py)
 
-Opening question (summary of the project) → topics in plan order. Each topic starts at level 2; solid answer → next level (up to 5); first non-solid answer → one probe (partial) or scaffold hint (weak / don't know); second non-solid answer, topic budget spent, or level 5 reached → next topic. 30 s before the end, or when topics run out → closing line, interview completed, report generated in the background.
+Opening question (summary of the project) → topics in plan order. Each topic starts at level 2; solid answer → next level (up to 5); first non-solid answer → one probe (partial) or scaffold hint (weak / don't know); second non-solid answer, topic budget spent, or level 5 reached → next topic. 30 s before the end, or when topics run out → closing line, interview completed, report generated in the background. With the demo rules on (D25) two overrides run before these.
 
 ## Open for later
 
