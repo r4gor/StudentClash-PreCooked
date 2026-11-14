@@ -45,6 +45,18 @@
     </div>`;
 
     if (!r) {
+      const WAITING = {                                  // no report yet because there is no finished interview yet
+        preparing: ["Preparing the interview", "Pythagoras is reading the deliverable and planning the questions."],
+        ready: ["Interview not started", "The team has its invite link but hasn't started the conversation yet."],
+        in_progress: ["Interview in progress", "The team is talking with Pythagoras right now. The report is written when they finish."],
+        error: ["Interview could not be prepared", s.error || "The preparation failed. The team can press Try again on its interview page."],
+      }[s.status];
+      if (WAITING) {
+        html += `<div class="card center-state"><div class="icon">${s.status === "error" ? "⚠️" : "⏳"}</div><h2>${WAITING[0]}</h2><p class="muted">${escapeHtml(WAITING[1])}</p></div>`;
+        $("#root").innerHTML = html;
+        if (!pollId && s.status !== "error") pollId = setInterval(load, 4000);
+        return;
+      }
       if (s.report_error) {
         const next = s.report_next_at ? new Date(s.report_next_at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "soon";
         html += `<div class="card center-state"><div class="icon">⏳</div><h2>Report queued</h2>
