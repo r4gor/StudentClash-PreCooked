@@ -166,3 +166,11 @@ def test_demo_reports_are_seeded_once_and_demo_runs_are_hidden(client):
     for s in subs:
         rep = client.get(f"/api/prof/submissions/{s['id']}").json()
         assert rep["submission"]["status"] == "completed" and len(rep["report"]["topics"]) == 3
+
+
+def test_oversized_file_is_refused_and_not_kept(client, monkeypatch):
+    from pythagoras import app as app_module
+    login(client)
+    monkeypatch.setattr(app_module, "MAX_UPLOAD", 1500 * 1024)
+    aid = client.post("/api/prof/assignments", data={"title": "Big"}, files=[("materials", ("notes.md", b"x" * (2 << 20)))])
+    assert aid.status_code == 413 and "larger than 50 MB" in aid.json()["detail"]

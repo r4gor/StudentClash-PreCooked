@@ -104,11 +104,16 @@ async def _save(files: List[UploadFile], folder: Path) -> List[str]:
     for f in files:
         if not f.filename:
             continue
-        data = await f.read()
-        if len(data) > MAX_UPLOAD:
-            raise HTTPException(413, f"{f.filename} is larger than 50 MB")
         name = _safe_name(f.filename)
-        (folder / name).write_bytes(data)
+        size = 0
+        with open(folder / name, "wb") as out:  # in chunks: an oversized file is never held in memory whole
+            while chunk := await f.read(1024 * 1024):
+                size += len(chunk)
+                if size > MAX_UPLOAD:
+                    out.close()
+                    (folder / name).unlink()
+                    raise HTTPException(413, f"{f.filename} is larger than 50 MB")
+                out.write(chunk)
         saved.append(name)
     return saved
 
