@@ -16,6 +16,7 @@ def login(c):
 def test_prof_api_needs_login(client):
     assert client.get("/api/prof/assignments").status_code == 401
     assert client.post("/api/prof/login", json={"password": "nope"}).status_code == 401
+    assert client.post("/api/prof/login", json={"password": "càffè"}).status_code == 401  # not a 500
 
 
 def test_full_flow_upload_interview_report(client):

@@ -443,7 +443,7 @@ def _prof_token() -> str:
 def prof(request: Request) -> None:
     if not config.PROFESSOR_PASSWORD:  # MVP default: no login
         return
-    if not hmac.compare_digest(request.cookies.get(COOKIE, ""), _prof_token()):
+    if not hmac.compare_digest(request.cookies.get(COOKIE, "").encode(), _prof_token().encode()):
         raise HTTPException(401, "Please sign in")
 
 
@@ -453,7 +453,7 @@ class Login(BaseModel):
 
 @app.post("/api/prof/login")
 def login(body: Login, response: Response):
-    if not hmac.compare_digest(body.password, config.PROFESSOR_PASSWORD):
+    if not hmac.compare_digest(body.password.encode(), config.PROFESSOR_PASSWORD.encode()):  # str: ASCII only
         raise HTTPException(401, "Wrong password")
     response.set_cookie(COOKIE, _prof_token(), httponly=True, samesite="lax", max_age=7 * 24 * 3600)
     return {"ok": True}
