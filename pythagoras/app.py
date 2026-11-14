@@ -98,13 +98,22 @@ def _safe_name(name: str) -> str:
     return name or "file"
 
 
+def _unique(name: str, taken: List[str]) -> str:
+    """Two files called report.pdf (from two folders) are both kept: report.pdf, report-2.pdf (a name that
+    _safe_name keeps as it is, so the professor can download it)."""
+    stem, ext, n = Path(name).stem, Path(name).suffix, 2
+    while name in taken:
+        name, n = f"{stem}-{n}{ext}", n + 1
+    return name
+
+
 async def _save(files: List[UploadFile], folder: Path) -> List[str]:
     folder.mkdir(parents=True, exist_ok=True)
     saved = []
     for f in files:
         if not f.filename:
             continue
-        name = _safe_name(f.filename)
+        name = _unique(_safe_name(f.filename), saved)
         size = 0
         with open(folder / name, "wb") as out:  # in chunks: an oversized file is never held in memory whole
             while chunk := await f.read(1024 * 1024):

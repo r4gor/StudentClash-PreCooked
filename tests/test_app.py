@@ -181,3 +181,13 @@ def test_oversized_file_is_refused_and_not_kept(client, monkeypatch):
                     files=[("files", ("ok.md", b"fine")), ("files", ("huge.pdf", b"x" * (2 << 20)))])
     assert r.status_code == 413
     assert client.get(f"/api/prof/assignments/{aid}").json()["submissions"] == []  # nothing stuck in "preparing"
+
+
+def test_files_with_the_same_name_are_both_kept(client):
+    login(client)
+    aid = client.post("/api/prof/assignments", data={"title": "Twins"}).json()["id"]
+    client.post("/api/submissions", data={"assignment_id": aid, "name": "T", "email": "t@u.edu"},
+                files=[("files", ("report.md", b"first")), ("files", ("report.md", b"second"))])
+    (sub,) = client.get(f"/api/prof/assignments/{aid}").json()["submissions"]
+    assert sub["files"] == ["report-2.md", "report.md"]
+    assert client.get(f"/api/prof/submissions/{sub['id']}/files/report-2.md").content == b"second"
