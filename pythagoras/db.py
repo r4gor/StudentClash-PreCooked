@@ -1,6 +1,7 @@
 """SQLite storage. Files (deliverables, course materials) live on disk next to the database."""
 import json
 import secrets
+import shutil
 import sqlite3
 import threading
 import time
@@ -147,6 +148,18 @@ def add_flag(sid: int, text: str) -> None:
         flags = json.loads(row["flags"] or "[]") + [text]
         c.execute("UPDATE submissions SET flags = ? WHERE id = ?", (json.dumps(flags[-200:]), sid))
         c.commit()
+
+
+def delete_submission(sid: int) -> None:
+    """Only for a submission whose upload failed: nothing else refers to it yet."""
+    _exec("DELETE FROM submissions WHERE id = ?", (sid,))
+    shutil.rmtree(submission_dir(sid), ignore_errors=True)
+
+
+def delete_assignment(aid: int) -> None:
+    """Only for an assignment whose upload failed, before any submission."""
+    _exec("DELETE FROM assignments WHERE id = ?", (aid,))
+    shutil.rmtree(assignment_dir(aid), ignore_errors=True)
 
 
 def update_submission(sid: int, **fields) -> None:

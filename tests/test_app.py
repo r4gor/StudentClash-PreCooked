@@ -174,3 +174,10 @@ def test_oversized_file_is_refused_and_not_kept(client, monkeypatch):
     monkeypatch.setattr(app_module, "MAX_UPLOAD", 1500 * 1024)
     aid = client.post("/api/prof/assignments", data={"title": "Big"}, files=[("materials", ("notes.md", b"x" * (2 << 20)))])
     assert aid.status_code == 413 and "larger than 50 MB" in aid.json()["detail"]
+    assert not any(a["title"] == "Big" for a in client.get("/api/prof/assignments").json())
+
+    aid = client.post("/api/prof/assignments", data={"title": "Small"}).json()["id"]
+    r = client.post("/api/submissions", data={"assignment_id": aid, "name": "T", "email": "t@u.edu"},
+                    files=[("files", ("ok.md", b"fine")), ("files", ("huge.pdf", b"x" * (2 << 20)))])
+    assert r.status_code == 413
+    assert client.get(f"/api/prof/assignments/{aid}").json()["submissions"] == []  # nothing stuck in "preparing"

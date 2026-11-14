@@ -204,7 +204,11 @@ async def submit(bg: BackgroundTasks, assignment_id: int = Form(...), name: str 
     if not any(f.filename for f in files):
         raise HTTPException(422, "Please attach at least one file")
     sub = db.create_submission(assignment_id, name, email)
-    await _save(files, db.submission_dir(sub["id"]))
+    try:
+        await _save(files, db.submission_dir(sub["id"]))
+    except Exception:  # a refused file must not leave an interview "preparing" forever
+        db.delete_submission(sub["id"])
+        raise
     bg.add_task(_prepare, sub["id"])  # emails the invite link once the interview is ready
     return {"id": sub["id"], "email": email, "email_configured": mailer.configured(),
             "invite_url": None if mailer.configured() else mailer.invite_url(sub["token"])}
@@ -459,7 +463,11 @@ async def create_assignment(title: str = Form(...), course: str = Form(""), desc
     if not title.strip():
         raise HTTPException(422, "Title is required")
     a = db.create_assignment(title.strip(), course.strip(), description.strip(), objectives.strip())
-    await _save(materials, db.assignment_dir(a["id"]) / "materials")
+    try:
+        await _save(materials, db.assignment_dir(a["id"]) / "materials")
+    except Exception:  # no half-made assignment without its course material
+        db.delete_assignment(a["id"])
+        raise
     return _public_assignment(a)
 
 
