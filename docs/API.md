@@ -44,7 +44,7 @@ All JSON unless noted. Errors: `{"detail": "..."}` with 4xx/5xx.
 |---|---|---|---|
 | GET | `/api/assignments` | | `[{id, title, course, description, created_at}]` |
 | POST | `/api/submissions` | multipart: `assignment_id`, `name`, `email`, `files` (1+) | `{id, email, email_configured: bool, invite_url: str \| null}` (`invite_url` only when email is not configured). The invite email is sent when the plan is ready, not now |
-| GET | `/api/interview/{token}` | | `{status, student_name, assignment_title, duration_s, topics_total, error}`; `status`: `preparing` \| `ready` \| `in_progress` \| `completed` \| `error`; 404 bad token |
+| GET | `/api/interview/{token}` | | `{status, student_name, assignment_title, duration_s, topics_total, error, voice, language, camera}`; `status`: `preparing` \| `ready` \| `in_progress` \| `completed` \| `error`; 404 bad token |
 | POST | `/api/interview/{token}/start` | | `Step`; when already `in_progress` it **resumes** (returns the pending question, answers are never wiped); 409 if still preparing or completed |
 | POST | `/api/interview/{token}/retry` | | re-runs the preparation when `status` is `error` (the "Try again" button); 409 otherwise |
 | POST | `/api/interview/{token}/answer` | `{text, duration_s, turn}` (`turn` = `Step.turn` of the question answered, optional) | next `Step` (`done: true` on the closing line); after the time is over it closes without calling the LLM; 409 if not started or `turn` is not the pending question (the answer was already saved); 503 if the LLM is unavailable (nothing new saved) |
@@ -53,7 +53,7 @@ All JSON unless noted. Errors: `{"detail": "..."}` with 4xx/5xx.
 `Step` (see `pythagoras/models.py`):
 ```json
 {"kind": "ask", "question": "...", "turn": 3, "topic_title": "Evaluation metrics", "level": 3, "level_name": "Apply",
- "topic_index": 2, "topics_total": 4, "elapsed_s": 75.2, "duration_s": 600, "done": false,
+ "topic_index": 2, "topics_total": 3, "elapsed_s": 75.2, "duration_s": 600, "done": false,
  "transcript": "what the student said last", "levels": {"metrics": 2}}
 ```
 

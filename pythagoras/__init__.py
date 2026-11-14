@@ -1,1 +1,1 @@
-"""Pythagoras: AI oral assessment of project deliverables (1-on-1 voice interview)."""
+"""Pythagoras: AI oral assessment of project deliverables (spoken interview with the team)."""

@@ -1,4 +1,4 @@
-"""The 1-on-1 interview engine. Stateless between requests: the API rebuilds it from the stored state.
+"""The interview engine (one team, one AI). Stateless between requests: the API rebuilds it from the stored state.
 
     step = Interview(plan, state).start()            # opening question
     step = Interview(plan, state).answer(text, dur)  # evaluate (reasoner) -> rules -> next question (talker)
