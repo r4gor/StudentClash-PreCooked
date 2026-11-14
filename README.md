@@ -19,6 +19,11 @@ the team's own words as evidence. The professor decides.
 
 ## How it works
 
+![Pythagoras architecture: browser, one FastAPI process with the local voice pipeline, orchestrator, judge and talker, planner, SQLite and report, and the LLM client](docs/architecture.png)
+
+<sub>Smart Turn v3 is drawn in the voice path; in the live interview the answer now ends on **I'm done** and the
+detector is kept but switched off (D24 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).</sub>
+
 ```mermaid
 flowchart LR
     U["Team uploads<br/>report, code"] --> P["1 · Plan<br/>3 anchored topics,<br/>a question per Bloom level"]
