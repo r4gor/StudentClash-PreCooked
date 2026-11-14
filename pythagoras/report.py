@@ -42,7 +42,25 @@ def _norm(s: str) -> str:
     return re.sub(r"[^\w ]", "", re.sub(r"\s+", " ", s.lower())).strip()  # \w keeps accented letters
 
 
+def _fragments(quote: str) -> list:
+    """A quote the writer shortened ("I scaled first … because it's easier") is checked piece by piece."""
+    return [f for f in (_norm(p) for p in re.split(r"…|\.{3,}|\[\.\.\.\]", quote)) if f]
+
+
 def unverified(state: InterviewState, rep: InterviewReport) -> list:
-    said = _norm(" ".join(t.answer or "" for t in state.turns))
-    return [e.quote for tr in rep.topics for e in tr.evidence
-            if _norm(e.quote.strip(" .\"'…")) not in said]
+    answers = [_norm(t.answer or "") for t in state.turns]
+
+    def found(quote: str) -> bool:  # every piece inside ONE answer, in order: an empty quote is not evidence
+        parts = _fragments(quote)
+        return bool(parts) and any(_in_order(parts, a) for a in answers)
+    return [e.quote for tr in rep.topics for e in tr.evidence if not found(e.quote)]
+
+
+def _in_order(parts: list, answer: str) -> bool:
+    at = 0
+    for p in parts:
+        at = answer.find(p, at)
+        if at < 0:
+            return False
+        at += len(p)
+    return True
