@@ -1,4 +1,5 @@
-"""Offline: turn detection with fake models, sentence splitting, speculation, flags. No audio models are loaded."""
+"""Offline: turn detection and the microphone stream with fake models, sentence splitting, speculation, flags.
+No audio models are loaded."""
 import numpy as np
 from fastapi.testclient import TestClient
 
@@ -94,3 +95,44 @@ def test_talker_lines_are_trimmed_to_bridge_and_question():
     assert talker.trim("So you used ROIC. That is on page 12. You also compare peers. How did you compute it?") == \
         "So you used ROIC. How did you compute it?"
     assert talker.trim("Let's move on.\nWhy Michelin?") == "Let's move on. Why Michelin?"
+
+
+def _stream(monkeypatch):
+    """The microphone WebSocket with fake models: non-zero frames are speech, Whisper returns a fixed text."""
+    from pythagoras import voice
+    monkeypatch.setattr(audio, "SileroVad", lambda: (lambda pcm: bool(pcm.any())))
+    monkeypatch.setattr(audio, "transcribe", lambda pcm, glossary="": "zeros for the first layer")
+    monkeypatch.setitem(voice._state, "warmed", True)
+    return TestClient(app).websocket_connect("/api/voice/stream?token=none")
+
+
+def test_stream_ends_the_answer_only_on_finish(monkeypatch):
+    with _stream(monkeypatch) as ws:
+        assert ws.receive_json()["type"] == "ready"
+        ws.send_json({"type": "listen", "enabled": True, "epoch": 7})
+        for _ in range(50):                                # 1 s of speech
+            ws.send_bytes((FRAME + 1000).tobytes())
+        for _ in range(200):                               # a 4 s pause to think: far beyond the old safety net
+            ws.send_bytes(FRAME.tobytes())
+        ws.send_json({"type": "finish"})                   # the "I'm done" button
+        assert [ws.receive_json()["type"] for _ in range(2)] == ["speech_start", "turn_end"]
+        heard = ws.receive_json()
+        assert (heard["type"], heard["text"], heard["epoch"]) == ("transcript", "zeros for the first layer", 7)
+        assert heard["speech_s"] >= 5.0                    # the pause is inside the answer: nothing cut it
+
+
+def test_stream_finish_without_speech_is_empty(monkeypatch):
+    with _stream(monkeypatch) as ws:
+        ws.receive_json()
+        ws.send_json({"type": "listen", "enabled": True, "epoch": 1})
+        for _ in range(50):
+            ws.send_bytes(FRAME.tobytes())
+        ws.send_json({"type": "finish"})
+        assert ws.receive_json() == {"type": "empty", "epoch": 1}
+
+
+def test_stream_refuses_until_the_models_are_loaded(monkeypatch):
+    from pythagoras import voice
+    monkeypatch.setitem(voice._state, "warmed", False)
+    with TestClient(app).websocket_connect("/api/voice/stream?token=none") as ws:
+        assert ws.receive_json()["type"] == "error"

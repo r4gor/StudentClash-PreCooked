@@ -1,5 +1,5 @@
 """Natural voice, all on this machine: the interview page streams 16 kHz microphone PCM over a WebSocket,
-the server detects the end of the answer by itself (audio.TurnDetector) and transcribes it (Whisper);
+the answer ends when the team presses "I'm done" (a "finish" message; never on silence) and Whisper transcribes it;
 Pythagoras's lines are synthesized by Kokoro and streamed back sentence by sentence.
 
 Without the `voice` extra (or with PYTHAGORAS_VOICE=browser) the page falls back to the browser's speech APIs.
