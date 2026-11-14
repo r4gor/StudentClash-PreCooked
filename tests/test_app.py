@@ -191,3 +191,14 @@ def test_files_with_the_same_name_are_both_kept(client):
     (sub,) = client.get(f"/api/prof/assignments/{aid}").json()["submissions"]
     assert sub["files"] == ["report-2.md", "report.md"]
     assert client.get(f"/api/prof/submissions/{sub['id']}/files/report-2.md").content == b"second"
+
+
+def test_a_failed_invite_email_keeps_the_interview_ready(client, monkeypatch):
+    from pythagoras import mailer
+    monkeypatch.setattr(mailer, "send_invite", lambda *a: (_ for _ in ()).throw(OSError("outbox not writable")))
+    login(client)
+    aid = client.post("/api/prof/assignments", data={"title": "Mail"}).json()["id"]
+    client.post("/api/submissions", data={"assignment_id": aid, "name": "T", "email": "t@u.edu"},
+                files=[("files", ("r.md", b"x"))])
+    (sub,) = client.get(f"/api/prof/assignments/{aid}").json()["submissions"]
+    assert sub["status"] == "ready" and sub["error"] is None

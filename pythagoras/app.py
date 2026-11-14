@@ -157,12 +157,16 @@ def _prepare(sid: int) -> None:
     try:
         plan = planner.make_plan(db.submission_dir(sid), db.assignment_dir(a["id"]) / "materials", a,
                                  config.DURATION_S)
-        db.update_submission(sid, plan=plan, status="ready", error=None)
-        log.info("plan ready for submission %s: %d topics", sid, len(plan.topics))
-        mailer.send_invite(sub["email"], sub["student_name"], a["title"], sub["token"])  # link works from now on
     except Exception as e:  # shown to the student and the professor; the student can be re-invited
         log.exception("plan failed for submission %s", sid)
         db.update_submission(sid, status="error", error=f"Could not prepare the interview: {e}")
+        return
+    db.update_submission(sid, plan=plan, status="ready", error=None)
+    log.info("plan ready for submission %s: %d topics", sid, len(plan.topics))
+    try:  # the link works from now on: a failed email must not turn a ready interview into an error
+        mailer.send_invite(sub["email"], sub["student_name"], a["title"], sub["token"])
+    except Exception:
+        log.exception("invite email for submission %s failed; the link is on the professor page", sid)
 
 
 _writing: set = set()
