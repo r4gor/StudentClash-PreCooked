@@ -268,7 +268,7 @@
 
   // ---------- answering ----------
   async function send(payload) {
-    pending = payload;
+    pending = payload = { ...payload, turn: step.turn };   // which question this answers: a resend can't land on the next one
     stopListening();
     answerUI("thinking");
     try {
@@ -300,7 +300,7 @@
     const btn = $("#end-btn");
     setBusy(btn, true, "Saving…");
     try {
-      const last = await api(`/api/interview/${encodeURIComponent(token)}/finish`, { method: "POST", body: pending || { text: $("#answer").value.trim(), duration_s: null } });
+      const last = await api(`/api/interview/${encodeURIComponent(token)}/finish`, { method: "POST", body: pending || { text: $("#answer").value.trim(), duration_s: null, turn: step && step.turn } });
       pending = null;
       await ask(last);
     } catch (e) {

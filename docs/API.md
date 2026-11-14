@@ -47,12 +47,12 @@ All JSON unless noted. Errors: `{"detail": "..."}` with 4xx/5xx.
 | GET | `/api/interview/{token}` | | `{status, student_name, assignment_title, duration_s, topics_total, error}`; `status`: `preparing` \| `ready` \| `in_progress` \| `completed` \| `error`; 404 bad token |
 | POST | `/api/interview/{token}/start` | | `Step`; when already `in_progress` it **resumes** (returns the pending question, answers are never wiped); 409 if still preparing or completed |
 | POST | `/api/interview/{token}/retry` | | re-runs the preparation when `status` is `error` (the "Try again" button); 409 otherwise |
-| POST | `/api/interview/{token}/answer` | `{text, duration_s}` | next `Step` (`done: true` on the closing line); after the time is over it closes without calling the LLM; 409 if not started; 503 if the LLM is unavailable (nothing new saved) |
-| POST | `/api/interview/{token}/finish` | `{text, duration_s}` (optional: the unsent answer) | closing `Step` (`done: true`); no LLM needed; status → `completed`, report queued; 409 if not in progress |
+| POST | `/api/interview/{token}/answer` | `{text, duration_s, turn}` (`turn` = `Step.turn` of the question answered, optional) | next `Step` (`done: true` on the closing line); after the time is over it closes without calling the LLM; 409 if not started or `turn` is not the pending question (the answer was already saved); 503 if the LLM is unavailable (nothing new saved) |
+| POST | `/api/interview/{token}/finish` | `{text, duration_s, turn}` (optional: the unsent answer; ignored when `turn` is already answered) | closing `Step` (`done: true`); no LLM needed; status → `completed`, report queued; 409 if not in progress |
 
 `Step` (see `pythagoras/models.py`):
 ```json
-{"kind": "ask", "question": "...", "topic_title": "Evaluation metrics", "level": 3, "level_name": "Apply",
+{"kind": "ask", "question": "...", "turn": 3, "topic_title": "Evaluation metrics", "level": 3, "level_name": "Apply",
  "topic_index": 2, "topics_total": 4, "elapsed_s": 75.2, "duration_s": 600, "done": false,
  "transcript": "what the student said last", "levels": {"metrics": 2}}
 ```

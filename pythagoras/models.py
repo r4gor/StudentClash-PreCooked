@@ -114,6 +114,7 @@ class Step(BaseModel):
     """What the interview page needs after every call."""
     kind: str
     question: str
+    turn: int = 0  # index of this question: the page sends it back with the answer
     topic_title: Optional[str] = None
     level: int = 0
     level_name: Optional[str] = None

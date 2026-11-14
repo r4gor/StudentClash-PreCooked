@@ -203,3 +203,33 @@ def test_a_failed_invite_email_keeps_the_interview_ready(client, monkeypatch):
                 files=[("files", ("r.md", b"x"))])
     (sub,) = client.get(f"/api/prof/assignments/{aid}").json()["submissions"]
     assert sub["status"] == "ready" and sub["error"] is None
+
+
+def test_two_answers_sent_together_are_judged_once(client, monkeypatch):
+    import threading
+    import time as _time
+    from pythagoras import supervisor
+    login(client)
+    aid = client.post("/api/prof/assignments", data={"title": "Race"}).json()["id"]
+    client.post("/api/submissions", data={"assignment_id": aid, "name": "T", "email": "t@u.edu"},
+                files=[("files", ("r.md", b"x"))])
+    (sub,) = client.get(f"/api/prof/assignments/{aid}").json()["submissions"]
+    token = sub["invite_url"].rsplit("/", 1)[1]
+    client.post(f"/api/interview/{token}/start")
+    client.post(f"/api/interview/{token}/answer", json={"text": "intro"})
+    real, judged = supervisor.evaluate, []
+    monkeypatch.setattr(supervisor, "evaluate", lambda *a: (judged.append(1), _time.sleep(0.2), real(*a))[2])
+    codes, turn = [], client.post(f"/api/interview/{token}/start").json()["turn"]   # start resumes: the pending question
+    send = lambda: codes.append(client.post(f"/api/interview/{token}/answer",
+                                            json={"text": "my answer", "turn": turn}).status_code)
+    threads = [threading.Thread(target=send) for _ in range(2)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert sorted(codes) == [200, 409] and len(judged) == 1
+    turns = client.get(f"/api/prof/submissions/{sub['id']}").json()["turns"]
+    assert [t["answer"] for t in turns].count("my answer") == 1
+
+    ended = client.post(f"/api/interview/{token}/finish", json={"text": "my answer", "turn": turn})  # stale: just ends
+    assert ended.json()["done"]
+    turns = client.get(f"/api/prof/submissions/{sub['id']}").json()["turns"]
+    assert [t["answer"] for t in turns].count("my answer") == 1

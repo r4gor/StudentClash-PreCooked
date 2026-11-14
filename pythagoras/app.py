@@ -329,6 +329,17 @@ def demo_start(bg: BackgroundTasks):
     return {"invite_url": f"/interview/{sub['token']}", "ready": bool(earlier)}
 
 
+_turn_locks: dict = {}
+_turn_locks_guard = threading.Lock()
+
+
+def _turn_lock(token: str) -> threading.Lock:
+    """One request at a time per interview: two answers sent together (Space and the button) would both be judged
+    on the same saved state, and the second save would drop the first."""
+    with _turn_locks_guard:
+        return _turn_locks.setdefault(token, threading.Lock())
+
+
 def _sub_by_token(token: str) -> dict:
     sub = db.submission_by_token(token)
     if sub is None:
@@ -349,17 +360,18 @@ def interview_status(token: str):
 
 @app.post("/api/interview/{token}/start")
 def interview_start(token: str):
-    sub = _sub_by_token(token)
-    if sub["status"] not in ("ready", "in_progress"):
-        raise HTTPException(409, {"preparing": "Your interview is still being prepared",
-                                  "completed": "This interview is already completed"}.get(sub["status"], sub["error"] or "Not available"))
-    plan, state, _ = _load(sub)
-    if sub["status"] == "in_progress" and state and state.turns:  # reopened link: resume, never wipe answers
-        return Interview(plan, state).current()
-    iv = Interview(plan, InterviewState(topics=[]))
-    step = iv.start()
-    db.update_submission(sub["id"], state=iv.state, status="in_progress")
-    return step
+    with _turn_lock(token):
+        sub = _sub_by_token(token)
+        if sub["status"] not in ("ready", "in_progress"):
+            raise HTTPException(409, {"preparing": "Your interview is still being prepared",
+                                      "completed": "This interview is already completed"}.get(sub["status"], sub["error"] or "Not available"))
+        plan, state, _ = _load(sub)
+        if sub["status"] == "in_progress" and state and state.turns:  # reopened link: resume, never wipe answers
+            return Interview(plan, state).current()
+        iv = Interview(plan, InterviewState(topics=[]))
+        step = iv.start()
+        db.update_submission(sub["id"], state=iv.state, status="in_progress")
+        return step
 
 
 @app.post("/api/interview/{token}/retry")
@@ -376,38 +388,51 @@ def interview_retry(token: str, bg: BackgroundTasks):
 class Answer(BaseModel):
     text: str = ""
     duration_s: Optional[float] = None
+    turn: Optional[int] = None  # Step.turn of the question being answered; None = the pending one
+
+
+def _stale(body: Optional[Answer], state: InterviewState) -> bool:
+    """An answer sent again (a retry after a timeout the server did process) is for a question that is already
+    answered: saving it would make it the answer to the next question."""
+    return body is not None and body.turn is not None and body.turn != len(state.turns) - 1
 
 
 @app.post("/api/interview/{token}/answer")
 def interview_answer(token: str, body: Answer, bg: BackgroundTasks):
-    sub = _sub_by_token(token)
-    if sub["status"] != "in_progress":
-        raise HTTPException(409, "The interview has not started" if sub["status"] == "ready" else "The interview is over")
-    plan, state, _ = _load(sub)
-    iv = Interview(plan, state)
-    try:
-        step = iv.answer(body.text, body.duration_s)
-    except ValueError as e:
-        raise HTTPException(409, str(e))
-    except Exception as e:  # LLM unavailable (quota, outage): nothing new is saved, earlier answers are
-        log.warning("answer failed for submission %s: %s", sub["id"], e)
-        raise HTTPException(503, "Pythagoras can't reach the AI right now (the API key may be over its limit). Your "
-                                 "previous answers are saved: try again in a minute, or end the interview.")
-    _save_progress(sub["id"], iv, bg)
-    return step
+    with _turn_lock(token):
+        sub = _sub_by_token(token)
+        if sub["status"] != "in_progress":
+            raise HTTPException(409, "The interview has not started" if sub["status"] == "ready" else "The interview is over")
+        plan, state, _ = _load(sub)
+        if _stale(body, state):
+            raise HTTPException(409, "This question was already answered")
+        iv = Interview(plan, state)
+        try:
+            step = iv.answer(body.text, body.duration_s)
+        except ValueError as e:
+            raise HTTPException(409, str(e))
+        except Exception as e:  # LLM unavailable (quota, outage): nothing new is saved, earlier answers are
+            log.warning("answer failed for submission %s: %s", sub["id"], e)
+            raise HTTPException(503, "Pythagoras can't reach the AI right now (the API key may be over its limit). Your "
+                                     "previous answers are saved: try again in a minute, or end the interview.")
+        _save_progress(sub["id"], iv, bg)
+        return step
 
 
 @app.post("/api/interview/{token}/finish")
 def interview_finish(token: str, bg: BackgroundTasks, body: Optional[Answer] = None):
     """End the interview now, keeping the unsent answer if any. Needs no LLM; the report is queued."""
-    sub = _sub_by_token(token)
-    if sub["status"] != "in_progress":
-        raise HTTPException(409, "The interview is not in progress")
-    plan, state, _ = _load(sub)
-    iv = Interview(plan, state)
-    step = iv.finish(body.text if body else None, body.duration_s if body else None)
-    _save_progress(sub["id"], iv, bg)
-    return step
+    with _turn_lock(token):
+        sub = _sub_by_token(token)
+        if sub["status"] != "in_progress":
+            raise HTTPException(409, "The interview is not in progress")
+        plan, state, _ = _load(sub)
+        if _stale(body, state):  # that text is already saved with its own question: just end
+            body = None
+        iv = Interview(plan, state)
+        step = iv.finish(body.text if body else None, body.duration_s if body else None)
+        _save_progress(sub["id"], iv, bg)
+        return step
 
 
 class Flag(BaseModel):

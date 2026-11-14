@@ -223,10 +223,10 @@ class Interview:
             self.state.finished = True
         return self._step(turn)
 
-    def _step(self, turn: Turn) -> Step:
+    def _step(self, turn: Turn) -> Step:  # always the last turn
         move, ids = turn.move, [t.id for t in self.plan.topics]
         topic = self._topic(move.topic_id) if move.topic_id else None
-        return Step(kind=move.kind, question=turn.question, topic_title=topic.title if topic else None,
+        return Step(kind=move.kind, question=turn.question, turn=len(self.state.turns) - 1, topic_title=topic.title if topic else None,
                     level=move.level, level_name=BLOOM.get(move.level), duration_s=self.plan.duration_s,
                     topic_index=ids.index(move.topic_id) + 1 if move.topic_id else 0, topics_total=len(ids),
                     elapsed_s=round(self.elapsed(), 1), done=self.state.finished,
